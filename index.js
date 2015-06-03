@@ -584,11 +584,33 @@ Dat.prototype.createDiffStream = function (headA, headB, opts) {
     obj.value = self._encoding.decode(obj.value)
   }
 
+  var format = function (data, enc, cb) {
+    var a = data[0]
+    var b = data[1]
+    var diff = {}
+    if (a) diff.key = a.key
+    if (b) diff.key = b.key
+    diff.forks = [headA, headB]
+    diff.versions = []
+    if (a) {
+      diff.versions.push(a)
+    } else {
+      diff.versions.push(null)
+    }
+    if (b) {
+      diff.versions.push(b)
+    } else {
+      diff.versions.push(null)
+    }
+    cb(null, diff)
+  }
+
   var fork = -1
   var filter = function (data, enc, cb) {
     if (fork === -1) fork = findFork()
     var a = data[0]
     var b = data[1]
+
     if (a && a.change < fork) a = data[0] = null
     if (b && b.change < fork) b = data[1] = null
     if (!a && !b) return cb()
@@ -610,7 +632,8 @@ Dat.prototype.createDiffStream = function (headA, headB, opts) {
 
   var readOpts = {change: true, encoding: binaryEncoding, all: true}
 
-  return pump(diff(a.createReadStream(readOpts), b.createReadStream(readOpts), isEqual), through.obj(filter))
+
+  return pump(diff(a.createReadStream(readOpts), b.createReadStream(readOpts), isEqual), through.obj(filter), through.obj(format))
 }
 
 Dat.prototype.merge =
